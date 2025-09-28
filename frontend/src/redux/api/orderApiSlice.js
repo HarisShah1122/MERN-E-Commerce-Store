@@ -12,9 +12,7 @@ export const orderApiSlice = apiSlice.injectEndpoints({
     }),
 
     getOrderDetails: builder.query({
-      query: (id) => ({
-        url: `${ORDERS_URL}/${id}`,
-      }),
+      query: (id) => `${ORDERS_URL}/${id}`,
     }),
 
     payOrder: builder.mutation({
@@ -26,22 +24,17 @@ export const orderApiSlice = apiSlice.injectEndpoints({
     }),
 
     getPaypalClientId: builder.query({
-      query: () => ({
-        url: PAYPAL_URL,
-      }),
+      query: () => PAYPAL_URL,
     }),
 
+    // ✅ FIX: Correct route is `/mine`
     getMyOrders: builder.query({
-      query: () => ({
-        url: `${ORDERS_URL}/mine`,
-      }),
+      query: () => `${ORDERS_URL}/mine`,
       keepUnusedDataFor: 5,
     }),
 
     getOrders: builder.query({
-      query: () => ({
-        url: ORDERS_URL,
-      }),
+      query: () => ORDERS_URL,
     }),
 
     deliverOrder: builder.mutation({
@@ -69,7 +62,6 @@ export const {
   useGetTotalOrdersQuery,
   useGetTotalSalesQuery,
   useGetTotalSalesByDateQuery,
-  // ------------------
   useCreateOrderMutation,
   useGetOrderDetailsQuery,
   usePayOrderMutation,

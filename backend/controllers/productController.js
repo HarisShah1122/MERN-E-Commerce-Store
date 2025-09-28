@@ -1,6 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 
+/**
+ * @desc    Add new product
+ * @route   POST /api/products
+ * @access  Admin
+ */
 const addProduct = asyncHandler(async (req, res) => {
   try {
     const { name, description, price, category, quantity, brand } = req.fields;
@@ -8,28 +13,34 @@ const addProduct = asyncHandler(async (req, res) => {
     // Validation
     switch (true) {
       case !name:
-        return res.json({ error: "Name is required" });
+        return res.status(400).json({ error: "Name is required" });
       case !brand:
-        return res.json({ error: "Brand is required" });
+        return res.status(400).json({ error: "Brand is required" });
       case !description:
-        return res.json({ error: "Description is required" });
+        return res.status(400).json({ error: "Description is required" });
       case !price:
-        return res.json({ error: "Price is required" });
+        return res.status(400).json({ error: "Price is required" });
       case !category:
-        return res.json({ error: "Category is required" });
+        return res.status(400).json({ error: "Category is required" });
       case !quantity:
-        return res.json({ error: "Quantity is required" });
+        return res.status(400).json({ error: "Quantity is required" });
     }
 
     const product = new Product({ ...req.fields });
     await product.save();
-    res.json(product);
+
+    res.status(201).json(product);
   } catch (error) {
     console.error(error);
-    res.status(400).json(error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 
+/**
+ * @desc    Update product
+ * @route   PUT /api/products/:id
+ * @access  Admin
+ */
 const updateProductDetails = asyncHandler(async (req, res) => {
   try {
     const { name, description, price, category, quantity, brand } = req.fields;
@@ -37,17 +48,17 @@ const updateProductDetails = asyncHandler(async (req, res) => {
     // Validation
     switch (true) {
       case !name:
-        return res.json({ error: "Name is required" });
+        return res.status(400).json({ error: "Name is required" });
       case !brand:
-        return res.json({ error: "Brand is required" });
+        return res.status(400).json({ error: "Brand is required" });
       case !description:
-        return res.json({ error: "Description is required" });
+        return res.status(400).json({ error: "Description is required" });
       case !price:
-        return res.json({ error: "Price is required" });
+        return res.status(400).json({ error: "Price is required" });
       case !category:
-        return res.json({ error: "Category is required" });
+        return res.status(400).json({ error: "Category is required" });
       case !quantity:
-        return res.json({ error: "Quantity is required" });
+        return res.status(400).json({ error: "Quantity is required" });
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -56,28 +67,44 @@ const updateProductDetails = asyncHandler(async (req, res) => {
       { new: true }
     );
 
-    await product.save();
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
 
     res.json(product);
   } catch (error) {
     console.error(error);
-    res.status(400).json(error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 
+/**
+ * @desc    Remove product
+ * @route   DELETE /api/products/:id
+ * @access  Admin
+ */
 const removeProduct = asyncHandler(async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
-    res.json(product);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    res.json({ message: "Product removed successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
   }
 });
 
+/**
+ * @desc    Fetch paginated products with keyword search
+ * @route   GET /api/products
+ * @access  Public
+ */
 const fetchProducts = asyncHandler(async (req, res) => {
   try {
     const pageSize = 6;
+    const page = Number(req.query.pageNumber) || 1;
 
     const keyword = req.query.keyword
       ? {
@@ -89,13 +116,15 @@ const fetchProducts = asyncHandler(async (req, res) => {
       : {};
 
     const count = await Product.countDocuments({ ...keyword });
-    const products = await Product.find({ ...keyword }).limit(pageSize);
+    const products = await Product.find({ ...keyword })
+      .limit(pageSize)
+      .skip(pageSize * (page - 1));
 
     res.json({
       products,
-      page: 1,
+      page,
       pages: Math.ceil(count / pageSize),
-      hasMore: false,
+      hasMore: page < Math.ceil(count / pageSize),
     });
   } catch (error) {
     console.error(error);
@@ -103,14 +132,18 @@ const fetchProducts = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Fetch single product by ID
+ * @route   GET /api/products/:id
+ * @access  Public
+ */
 const fetchProductById = asyncHandler(async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (product) {
       return res.json(product);
     } else {
-      res.status(404);
-      throw new Error("Product not found");
+      res.status(404).json({ error: "Product not found" });
     }
   } catch (error) {
     console.error(error);
@@ -118,12 +151,17 @@ const fetchProductById = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Fetch all products (for admin dashboard)
+ * @route   GET /api/products/allproducts
+ * @access  Public/Admin
+ */
 const fetchAllProducts = asyncHandler(async (req, res) => {
   try {
     const products = await Product.find({})
       .populate("category")
-      .limit(12)
-      .sort({ createAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(12);
 
     res.json(products);
   } catch (error) {
@@ -132,6 +170,11 @@ const fetchAllProducts = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Add product review
+ * @route   POST /api/products/:id/reviews
+ * @access  Private
+ */
 const addProductReview = asyncHandler(async (req, res) => {
   try {
     const { rating, comment } = req.body;
@@ -143,8 +186,7 @@ const addProductReview = asyncHandler(async (req, res) => {
       );
 
       if (alreadyReviewed) {
-        res.status(400);
-        throw new Error("Product already reviewed");
+        return res.status(400).json({ error: "Product already reviewed" });
       }
 
       const review = {
@@ -155,9 +197,7 @@ const addProductReview = asyncHandler(async (req, res) => {
       };
 
       product.reviews.push(review);
-
       product.numReviews = product.reviews.length;
-
       product.rating =
         product.reviews.reduce((acc, item) => item.rating + acc, 0) /
         product.reviews.length;
@@ -165,44 +205,70 @@ const addProductReview = asyncHandler(async (req, res) => {
       await product.save();
       res.status(201).json({ message: "Review added" });
     } else {
-      res.status(404);
-      throw new Error("Product not found");
+      res.status(404).json({ error: "Product not found" });
     }
   } catch (error) {
     console.error(error);
-    res.status(400).json(error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 
+/**
+ * @desc    Fetch top rated products
+ * @route   GET /api/products/top
+ * @access  Public
+ */
 const fetchTopProducts = asyncHandler(async (req, res) => {
   try {
     const products = await Product.find({}).sort({ rating: -1 }).limit(4);
     res.json(products);
   } catch (error) {
     console.error(error);
-    res.status(400).json(error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 
+/**
+ * @desc    Fetch newly added products
+ * @route   GET /api/products/new
+ * @access  Public
+ */
 const fetchNewProducts = asyncHandler(async (req, res) => {
   try {
     const products = await Product.find().sort({ _id: -1 }).limit(5);
     res.json(products);
   } catch (error) {
     console.error(error);
-    res.status(400).json(error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 
+/**
+ * @desc    Filter products by category & price
+ * @route   POST /api/products/filtered-products
+ * @access  Public
+ */
 const filterProducts = asyncHandler(async (req, res) => {
   try {
-    const { checked, radio } = req.body;
-
+    const { checked = [], radio = [] } = req.body;
     let args = {};
-    if (checked.length > 0) args.category = checked;
-    if (radio.length) args.price = { $gte: radio[0], $lte: radio[1] };
 
-    const products = await Product.find(args);
+    // Category filter
+    if (checked.length > 0) {
+      args.category = { $in: checked };
+    }
+
+    // Price filter
+    if (radio.length === 2) {
+      args.price = { $gte: radio[0], $lte: radio[1] };
+    }
+
+    // Default → return all
+    const products =
+      checked.length === 0 && radio.length === 0
+        ? await Product.find({})
+        : await Product.find(args);
+
     res.json(products);
   } catch (error) {
     console.error(error);

@@ -10,17 +10,13 @@ function calcPrices(orderItems) {
 
   const shippingPrice = itemsPrice > 100 ? 0 : 10;
   const taxRate = 0.15;
-  const taxPrice = (itemsPrice * taxRate).toFixed(2);
+  const taxPrice = +(itemsPrice * taxRate).toFixed(2);
 
-  const totalPrice = (
-    itemsPrice +
-    shippingPrice +
-    parseFloat(taxPrice)
-  ).toFixed(2);
+  const totalPrice = +(itemsPrice + shippingPrice + taxPrice).toFixed(2);
 
   return {
-    itemsPrice: itemsPrice.toFixed(2),
-    shippingPrice: shippingPrice.toFixed(2),
+    itemsPrice: +itemsPrice.toFixed(2),
+    shippingPrice: +shippingPrice.toFixed(2),
     taxPrice,
     totalPrice,
   };
@@ -30,30 +26,29 @@ const createOrder = async (req, res) => {
   try {
     const { orderItems, shippingAddress, paymentMethod } = req.body;
 
-    if (orderItems && orderItems.length === 0) {
-      res.status(400);
-      throw new Error("No order items");
+    if (!orderItems || orderItems.length === 0) {
+      return res.status(400).json({ message: "No order items" });
     }
 
     const itemsFromDB = await Product.find({
-      _id: { $in: orderItems.map((x) => x._id) },
+      _id: { $in: orderItems.map((x) => x.product) }, 
     });
 
     const dbOrderItems = orderItems.map((itemFromClient) => {
       const matchingItemFromDB = itemsFromDB.find(
-        (itemFromDB) => itemFromDB._id.toString() === itemFromClient._id
+        (itemFromDB) => itemFromDB._id.toString() === itemFromClient.product
       );
 
       if (!matchingItemFromDB) {
-        res.status(404);
-        throw new Error(`Product not found: ${itemFromClient._id}`);
+        throw new Error(`Product not found: ${itemFromClient.product}`);
       }
 
       return {
-        ...itemFromClient,
-        product: itemFromClient._id,
+        name: matchingItemFromDB.name,
+        qty: itemFromClient.qty,
+        image: matchingItemFromDB.image,
         price: matchingItemFromDB.price,
-        _id: undefined,
+        product: matchingItemFromDB._id,
       };
     });
 
@@ -118,16 +113,10 @@ const calculateTotalSales = async (req, res) => {
 const calcualteTotalSalesByDate = async (req, res) => {
   try {
     const salesByDate = await Order.aggregate([
-      {
-        $match: {
-          isPaid: true,
-        },
-      },
+      { $match: { isPaid: true } },
       {
         $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$paidAt" },
-          },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
           totalSales: { $sum: "$totalPrice" },
         },
       },
@@ -149,8 +138,7 @@ const findOrderById = async (req, res) => {
     if (order) {
       res.json(order);
     } else {
-      res.status(404);
-      throw new Error("Order not found");
+      res.status(404).json({ message: "Order not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -172,10 +160,9 @@ const markOrderAsPaid = async (req, res) => {
       };
 
       const updateOrder = await order.save();
-      res.status(200).json(updateOrder);
+      res.json(updateOrder);
     } else {
-      res.status(404);
-      throw new Error("Order not found");
+      res.status(404).json({ message: "Order not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -193,8 +180,7 @@ const markOrderAsDelivered = async (req, res) => {
       const updatedOrder = await order.save();
       res.json(updatedOrder);
     } else {
-      res.status(404);
-      throw new Error("Order not found");
+      res.status(404).json({ message: "Order not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });

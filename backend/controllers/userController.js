@@ -36,30 +36,26 @@ const createUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  console.log(email);
-  console.log(password);
+  console.log("Login attempt:", email);
 
   const existingUser = await User.findOne({ email });
 
-  if (existingUser) {
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      existingUser.password
-    );
+    if (existingUser && (await bcrypt.compare(password, existingUser.password))) {
+      const token = createToken(res, existingUser._id);
 
-    if (isPasswordValid) {
-      createToken(res, existingUser._id);
-
-      res.status(201).json({
+      res.json({
         _id: existingUser._id,
         username: existingUser.username,
         email: existingUser.email,
         isAdmin: existingUser.isAdmin,
+        token, // 👈 include token here
       });
-      return;
+    } else {
+      res.status(401).json({ message: "Invalid email or password" });
     }
-  }
+
 });
+
 
 const logoutCurrentUser = asyncHandler(async (req, res) => {
   res.cookie("jwt", "", {
